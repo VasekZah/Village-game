@@ -6,6 +6,7 @@ import { findClosest, worldToGrid, findWalkableNeighbor, updateGridForObject, se
 import { Entity } from './entity.js';
 import { WorldObject } from './worldObject.js';
 import { Projectile } from './projectile.js';
+import { Building } from './building.js';
 
 export class Settler extends Entity {
     constructor(name, x, y, isChild = false, age = 0) {

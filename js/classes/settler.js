@@ -92,17 +92,15 @@ export class Settler extends Entity {
         }
     }
     resetTask(dropPayload = true) {
-        // Pokud má dělník náklad a má ho upustit, vytvoří hromadu
         if (this.payload && dropPayload) {
             const pileType = this.payload.type + '_pile';
             if (PixelDrawer[pileType]) {
                 G.state.worldObjects.push(new WorldObject(pileType, this.x, this.y, this.payload.amount));
-            } else {
+            } else { 
                 G.state.resources[this.payload.type] += this.payload.amount;
             }
         }
-        
-        // Uvolnění cíle, aby ho mohl zpracovat jiný dělník
+
         if (this.target && this.target.targetedBy === this) this.target.targetedBy = null;
         if (this.target && Array.isArray(this.target.targetedByHaulers)) {
             this.target.targetedByHaulers = this.target.targetedByHaulers.filter(s => s !== this);
@@ -162,17 +160,14 @@ export class Settler extends Entity {
         }
         if (this.isChild) { this.wander(); return; }
         
-        // Logika pro sbírání a nošení dělníků (laborer)
         if (this.job === 'laborer') {
              if (this.findLaborerWork()) return;
         }
         
-        // Logika pro stavitele
         if (this.job === 'builder') {
             if (this.findHaulingWork()) return;
         }
 
-        // Logika pro ostatní specializované pracovníky
         if (this.findJobSpecificWork()) return;
         
         this.wander();
@@ -186,7 +181,6 @@ export class Settler extends Entity {
             this.findAndSetPath(targetPos, 'idle');
         }
     }
-    // Dělník (laborer) hledá hromady na zemi a nese je do skladu
     findLaborerWork() {
         const stockpile = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
         if (!stockpile) return false;
@@ -202,7 +196,6 @@ export class Settler extends Entity {
         }
         return false;
     }
-    // Stavitel hledá materiál, který je potřeba na stavbu
     findHaulingWork() {
         const sites = G.state.buildings.filter(b =>
             (b.isUnderConstruction || b.isUpgrading) && !b.hasMaterials() && b.targetedByHaulers.length < CONFIG.MAX_HAULERS_PER_SITE
@@ -229,7 +222,6 @@ export class Settler extends Entity {
         }
         return false;
     }
-    // Pracovníci s konkrétními úkoly hledají suroviny
     findJobSpecificWork() {
         const stockpile = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
         if (!stockpile && this.job !== 'hunter' && this.job !== 'forager' && this.job !== 'forester') return false;
@@ -312,13 +304,12 @@ export class Settler extends Entity {
                 this.target.enRoute[this.payload.type] = Math.max(0, (this.target.enRoute[this.payload.type] || 0) - this.payload.amount);
             }
         } else {
-            // Dělník (laborer) ukládá do celkového stavu, ne do budovy
             if (this.payload) {
-                G.state.resources[this.payload.type] += this.payload.amount;
+                 G.state.resources[this.payload.type] += this.payload.amount;
             }
         }
         this.payload = null;
-        this.resetTask(false); // Suroviny jsou uloženy, není třeba je upouštět
+        this.resetTask(false);
     }
     performEat() {
         if (G.state.resources.food > 0) { 
@@ -328,7 +319,7 @@ export class Settler extends Entity {
         this.resetTask();
     }
     work() {
-        const duration = this.task === 'pickingUpResource' ? CONFIG.PICKUP_DURATION : CONFIG.WORK_DURATION;
+        const duration = (this.task === 'pickingUpResource' || this.task === 'workingAtResource') ? CONFIG.PICKUP_DURATION : CONFIG.WORK_DURATION;
         if (!this.target) { this.resetTask(); return; }
         
         if (this.task === 'pickingUpResource' && !G.state.worldObjects.includes(this.target)) { this.resetTask(); return; }
@@ -343,27 +334,26 @@ export class Settler extends Entity {
 
         switch(this.task) {
             case 'workingAtResource':
-                // Pracovník vytvoří hromadu na zemi a uvolní se k další práci
+                // Pracovník (ne dělník) dokončí práci a vytvoří hromadu na zemi.
                 if (!this.target.resource) { this.resetTask(); return; }
                 const pileType = this.target.resource.type + '_pile';
-                const newPile = new WorldObject(pileType, this.target.x, this.y + 10, this.target.resource.amount);
+                const newPile = new WorldObject(pileType, this.target.x + (Math.random() - 0.5) * 10, this.target.y + (Math.random() - 0.5) * 10, this.target.resource.amount);
                 G.state.worldObjects.push(newPile);
                 
                 if (this.target.type === 'tree') {
-                    this.target.type = 'stump'; this.target.growth = 0; this.target.resource = null;
-                    updateGridForObject(this.target, true);
-                } else if (this.target.type === 'bush') {
-                    G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
+                    this.target.type = 'stump';
+                    this.target.growth = 0;
+                    this.target.resource = null;
                     updateGridForObject(this.target, true);
                 } else {
                     G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
                     updateGridForObject(this.target, true);
                 }
-                this.resetTask(false); // Pracovník nic neponese
+                this.resetTask(false);
                 return;
             
             case 'pickingUpResource':
-                // Dělník sebere surovinu a vydá se do skladu
+                // Dělník (laborer) sebere surovinu a vydá se do skladu
                 if (!this.target.resource) { this.resetTask(); return; }
 
                 this.payload = { type: this.target.resource.type, amount: this.target.resource.amount };

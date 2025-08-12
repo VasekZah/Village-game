@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 import { drawFullGround, drawGroundTile } from './drawing.js';
 import { updateUIDisplay } from './ui.js';
 import { Settler, Building, WorldObject, Animal } from './classes/index.js';
-import { updateGridForObject, assignHomes, screenToWorld, worldToGrid } from './helpers.js';
+import { updateGridForObject, assignHomes, screenToWorld, worldToGrid, setNotification } from './helpers.js';
 
 export function initGame() {
     const gridW = CONFIG.WORLD_WIDTH / CONFIG.GRID_SIZE; 

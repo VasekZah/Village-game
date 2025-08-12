@@ -65,8 +65,8 @@ export class Settler extends Entity {
             }
         }
     }
-    resetTask() {
-        if (this.payload) {
+    resetTask(dropPayload = true) {
+        if (this.payload && dropPayload) {
             const pileType = this.payload.type + '_pile';
             if (PixelDrawer[pileType]) {
                 G.state.worldObjects.push(new WorldObject(pileType, this.x, this.y, this.payload.amount));
@@ -74,6 +74,7 @@ export class Settler extends Entity {
                 G.state.resources[this.payload.type] += this.payload.amount;
             }
         }
+
         if (this.target && this.target.targetedBy === this) this.target.targetedBy = null;
         if (this.target && Array.isArray(this.target.targetedByHaulers)) {
             this.target.targetedByHaulers = this.target.targetedByHaulers.filter(s => s !== this);
@@ -269,7 +270,7 @@ export class Settler extends Entity {
             if (this.payload) G.state.resources[this.payload.type] += this.payload.amount;
         }
         this.payload = null;
-        this.resetTask();
+        this.resetTask(false); // Klíčová změna: Nepokládat náklad, protože už byl uložen
     }
     performEat() {
         if (G.state.resources.food > 0) { 
@@ -315,7 +316,14 @@ export class Settler extends Entity {
                 }
 
                 const stockpile = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
-                if (!stockpile || !this.findAndSetPath(stockpile, 'depositingResource')) {
+                if (!stockpile) {
+                    this.resetTask();
+                    return;
+                }
+                
+                // Klíčová oprava: Správné nastavení cesty a úkolu.
+                this.target.targetedBy = null;
+                if (!this.findAndSetPath(stockpile, 'depositingResource')) {
                     this.resetTask();
                 }
                 return;
@@ -323,10 +331,17 @@ export class Settler extends Entity {
                 this.payload = { ...this.target.resource };
                 G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
                 const stockpilePick = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
-                if (!stockpilePick || !this.findAndSetPath(stockpilePick, 'depositingResource')) {
+                 if (!stockpilePick) {
+                    this.resetTask();
+                    return;
+                }
+                
+                // Klíčová oprava: Správné nastavení cesty a úkolu.
+                this.target.targetedBy = null;
+                if (!this.findAndSetPath(stockpilePick, 'depositingResource')) {
                     this.resetTask();
                 }
-                break; 
+                break;
             case 'workingHunting':
                 if (this.target && !this.target.isDead) G.state.projectiles.push(new Projectile(this.x, this.y, this.target));
                 this.resetTask();
@@ -380,7 +395,7 @@ export class Settler extends Entity {
                           ((target.size ? Math.max(target.size.w, target.size.h) / 2 : target.radius || 0) + CONFIG.INTERACTION_DISTANCE);
         if (!path && !isInRange) return false; 
 
-        if (this.task !== 'idle') this.resetTask(); 
+        if (this.task !== 'idle') this.resetTask(false); 
 
         this.target = target;
         this.onPathComplete = onComplete;

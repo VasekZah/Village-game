@@ -14,7 +14,6 @@ export class Settler extends Entity {
         this.name = name; this.x = x; this.y = y;
         this.job = 'laborer';
         this.task = 'idle'; 
-        this.taskState = null; 
         this.target = null;
         this.path = [];
         this.payload = null;
@@ -30,7 +29,6 @@ export class Settler extends Entity {
     getTooltip() {
         if (this.isChild) return `<div>${this.name} (Dítě, ${Math.floor(this.age)}/${CONFIG.AGE_UP_DAYS})</div><div>Hlad: ${Math.floor(this.hunger)}%</div>`;
         let taskDesc = this.task;
-        if (this.taskState) taskDesc += ` (${this.taskState})`;
         if (this.payload) taskDesc += ` (nese ${this.payload.amount} ${getUiIcon(this.payload.type)})`;
         const homeInfo = this.home ? ` | Bydliště: ${CONFIG.BUILDINGS[this.home.type].name}` : '';
         const jobName = this.job === 'laborer' ? 'Dělník' : (CONFIG.JOBS[this.job]?.name || 'Neznámý');
@@ -91,16 +89,7 @@ export class Settler extends Entity {
             }
         }
     }
-    resetTask(dropPayload = true) {
-        if (this.payload && dropPayload) {
-            const pileType = this.payload.type + '_pile';
-            if (PixelDrawer[pileType]) {
-                G.state.worldObjects.push(new WorldObject(pileType, this.x, this.y, this.payload.amount));
-            } else { 
-                G.state.resources[this.payload.type] += this.payload.amount;
-            }
-        }
-
+    resetTask() {
         if (this.target && this.target.targetedBy === this) this.target.targetedBy = null;
         if (this.target && Array.isArray(this.target.targetedByHaulers)) {
             this.target.targetedByHaulers = this.target.targetedByHaulers.filter(s => s !== this);
@@ -110,7 +99,6 @@ export class Settler extends Entity {
         }
 
         this.task = 'idle';
-        this.taskState = null;
         this.target = null;
         this.secondaryTarget = null;
         this.payload = null;
@@ -223,9 +211,6 @@ export class Settler extends Entity {
         return false;
     }
     findJobSpecificWork() {
-        const stockpile = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
-        if (!stockpile && this.job !== 'hunter' && this.job !== 'forager' && this.job !== 'forester') return false;
-
         let target;
         switch(this.job) {
             case 'builder':
@@ -309,7 +294,7 @@ export class Settler extends Entity {
             }
         }
         this.payload = null;
-        this.resetTask(false);
+        this.resetTask();
     }
     performEat() {
         if (G.state.resources.food > 0) { 
@@ -348,7 +333,7 @@ export class Settler extends Entity {
                     G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
                     updateGridForObject(this.target, true);
                 }
-                this.resetTask(false);
+                this.resetTask();
                 return;
             
             case 'pickingUpResource':
@@ -420,7 +405,7 @@ export class Settler extends Entity {
                           ((target.size ? Math.max(target.size.w, target.size.h) / 2 : target.radius || 0) + CONFIG.INTERACTION_DISTANCE);
         if (!path && !isInRange) return false; 
 
-        if (this.task !== 'idle') this.resetTask(false); 
+        if (this.task !== 'idle') this.resetTask(); 
 
         this.target = target;
         this.onPathComplete = onComplete;

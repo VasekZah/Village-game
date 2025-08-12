@@ -304,7 +304,7 @@ export class Settler extends Entity {
         this.resetTask();
     }
     work() {
-        const duration = (this.task === 'pickingUpResource' || this.task === 'workingAtResource') ? CONFIG.PICKUP_DURATION : CONFIG.WORK_DURATION;
+        const duration = (this.task === 'pickingUpResource' || this.task === 'workingAtResource') ? CONFIG.WORK_DURATION : CONFIG.WORK_DURATION;
         if (!this.target) { this.resetTask(); return; }
         
         if (this.task === 'pickingUpResource' && !G.state.worldObjects.includes(this.target)) { this.resetTask(); return; }

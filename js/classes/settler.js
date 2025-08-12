@@ -334,7 +334,6 @@ export class Settler extends Entity {
 
         switch(this.task) {
             case 'workingAtResource':
-                // Pracovník (ne dělník) dokončí práci a vytvoří hromadu na zemi.
                 if (!this.target.resource) { this.resetTask(); return; }
                 const pileType = this.target.resource.type + '_pile';
                 const newPile = new WorldObject(pileType, this.target.x + (Math.random() - 0.5) * 10, this.target.y + (Math.random() - 0.5) * 10, this.target.resource.amount);
@@ -353,14 +352,18 @@ export class Settler extends Entity {
                 return;
             
             case 'pickingUpResource':
-                // Dělník (laborer) sebere surovinu a vydá se do skladu
                 if (!this.target.resource) { this.resetTask(); return; }
-
                 this.payload = { type: this.target.resource.type, amount: this.target.resource.amount };
                 G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
                 
                 const stockpilePick = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
-                if (!stockpilePick || !this.findAndSetPath(stockpilePick, 'depositingResource')) {
+                if (!stockpilePick) {
+                    this.resetTask();
+                    return;
+                }
+                
+                this.target.targetedBy = null;
+                if (!this.findAndSetPath(stockpilePick, 'depositingResource')) {
                     this.resetTask();
                 }
                 break;

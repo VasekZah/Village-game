@@ -1,6 +1,6 @@
 import { G } from './globals.js';
 import { CONFIG } from './config.js';
-import { screenToWorld, setNotification, updateGridForObject, assignHomes } from './helpers.js';
+import { screenToWorld, setNotification, updateGridForObject, worldToGrid } from './helpers.js';
 import { Building } from './classes/building.js';
 
 export function addEventListeners() {

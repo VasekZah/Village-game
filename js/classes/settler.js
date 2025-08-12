@@ -60,9 +60,11 @@ export class Settler extends Entity {
             case 'workingOnFarm':
             case 'workingAsForester':
             case 'workingHunting':
-            case 'pickingUpResource':
             case 'upgradingBuilding':
                 this.work();
+                break;
+            case 'pickingUpResource':
+                this.performPickup(); // Nová metoda pro okamžitý sběr
                 break;
             case 'pickupForHauling':
                 this.performHaulPickup();
@@ -282,6 +284,18 @@ export class Settler extends Entity {
         } else { this.resetTask(); }
     }
     
+    performPickup() {
+        if (!this.target || !this.target.resource) { this.resetTask(); return; }
+        
+        this.payload = { type: this.target.resource.type, amount: this.target.resource.amount };
+        G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
+        
+        const stockpile = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
+        if (!stockpile || !this.findAndSetPath(stockpile, 'depositingResource')) {
+            this.resetTask();
+        }
+    }
+    
     performDeposit(atSite) {
         if (atSite) {
             if (this.payload && this.target) {
@@ -304,15 +318,18 @@ export class Settler extends Entity {
         this.resetTask();
     }
     work() {
-        const duration = (this.task === 'pickingUpResource' || this.task === 'workingAtResource') ? CONFIG.WORK_DURATION : CONFIG.WORK_DURATION;
         if (!this.target) { this.resetTask(); return; }
         
-        if (this.task === 'pickingUpResource' && !G.state.worldObjects.includes(this.target)) { this.resetTask(); return; }
         if ((this.task === 'workingAtResource') && (!this.target.resource || this.target.type === 'stump')) { this.resetTask(); return; }
         if ((this.task === 'workingOnConstruction' || this.task === 'upgradingBuilding') && !this.target.isUnderConstruction && !this.target.isUpgrading) { this.resetTask(); return; }
+        
+        const duration = CONFIG.WORK_DURATION;
 
         this.workProgress++;
-        if (this.workProgress >= duration) this.finishWork();
+        if (this.workProgress >= duration) {
+            this.workProgress = 0;
+            this.finishWork();
+        }
     }
     finishWork() {
         if (!this.target) { this.resetTask(); return; }
@@ -336,22 +353,6 @@ export class Settler extends Entity {
                 this.resetTask();
                 return;
             
-            case 'pickingUpResource':
-                if (!this.target.resource) { this.resetTask(); return; }
-                this.payload = { type: this.target.resource.type, amount: this.target.resource.amount };
-                G.state.worldObjects = G.state.worldObjects.filter(o => o !== this.target);
-                
-                const stockpilePick = findClosest(this, G.state.buildings, b => b.type === 'stockpile' && !b.isUnderConstruction);
-                if (!stockpilePick) {
-                    this.resetTask();
-                    return;
-                }
-                
-                this.target.targetedBy = null;
-                if (!this.findAndSetPath(stockpilePick, 'depositingResource')) {
-                    this.resetTask();
-                }
-                break;
             case 'workingHunting':
                 if (this.target && !this.target.isDead) G.state.projectiles.push(new Projectile(this.x, this.y, this.target));
                 this.resetTask();
@@ -405,7 +406,7 @@ export class Settler extends Entity {
                           ((target.size ? Math.max(target.size.w, target.size.h) / 2 : target.radius || 0) + CONFIG.INTERACTION_DISTANCE);
         if (!path && !isInRange) return false; 
 
-        if (this.task !== 'idle') this.resetTask(); 
+        this.resetTask(); 
 
         this.target = target;
         this.onPathComplete = onComplete;
